@@ -540,16 +540,18 @@ function getQueryFlightSQL(span: TraceSpan, options: TraceToLogsOptionsV2, tags:
       rawQuery: true,
       queryText: customQuery,
       query: customQuery,
+      resultFormat: 'logs',
     };
   }
 
-  let query = 'SELECT time, "severity_text", body FROM logs WHERE $__timeRange(time)';
-  if (filterByTraceID && span.traceID) {
-    query = 'SELECT time, "severity_text", body FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND $__timeRange(time)';
-  }
-  if (filterBySpanID && span.spanID) {
-    query = 'SELECT time, "severity_text", body FROM logs WHERE "span_id"=\'${__span.spanId}\' AND $__timeRange(time)';
-  }
+  let query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE time >=${__from} AND time <=${__to}';
+  if (filterByTraceID && span.traceID && filterBySpanID && span.spanID) {
+    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+} else if (filterByTraceID && span.traceID) {
+    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from} AND time <=${__to}';
+} else if (filterBySpanID && span.spanID) {
+    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+}
 
   return {
     refId: '',
