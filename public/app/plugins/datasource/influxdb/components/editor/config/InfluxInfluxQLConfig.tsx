@@ -7,12 +7,15 @@ import {
   onUpdateDatasourceJsonDataOptionSelect,
   onUpdateDatasourceOption,
   onUpdateDatasourceSecureJsonDataOption,
+  updateDatasourcePluginJsonDataOption,
   SelectableValue,
   updateDatasourcePluginResetOption,
 } from '@grafana/data';
 import { Alert, InlineFormLabel, LegacyForms, Select } from '@grafana/ui';
 
 import { InfluxOptions, InfluxSecureJsonData } from '../../../types';
+
+import { ExemplarsSettings } from './ExemplarsSettings';
 
 const { Input, SecretFormField } = LegacyForms;
 
@@ -135,6 +138,18 @@ export const InfluxInfluxQLConfig = (props: Props) => {
           </div>
         </div>
       </div>
+
+      <ExemplarsSettings
+        options={options.jsonData.exemplarTraceIdDestinations}
+        onChange={(exemplarOptions) =>
+          updateDatasourcePluginJsonDataOption(
+            { onOptionsChange, options },
+            'exemplarTraceIdDestinations',
+            exemplarOptions
+          )
+        }
+        disabled={options.readOnly}
+      />
     </>
   );
 };

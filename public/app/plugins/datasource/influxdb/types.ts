@@ -7,6 +7,12 @@ export enum InfluxVersion {
   Flux = 'Flux',
   SQL = 'SQL',
 }
+export type ExemplarTraceIdDestination = {
+  name: string;
+  url?: string;
+  urlDisplayLabel?: string;
+  datasourceUid?: string;
+};
 
 export interface InfluxOptions extends DataSourceJsonData {
   version?: InfluxVersion;
@@ -23,6 +29,7 @@ export interface InfluxOptions extends DataSourceJsonData {
 
   // With SQL
   metadata?: Array<Record<string, string>>;
+  exemplarTraceIdDestinations?: ExemplarTraceIdDestination[];
 }
 
 /**

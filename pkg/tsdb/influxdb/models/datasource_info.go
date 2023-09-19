@@ -4,6 +4,11 @@ import (
 	"net/http"
 )
 
+type ExemplarSetting struct {
+	DatasourceUid string `json:"datasourceUid"`
+	Name          string `json:"name"`
+}
+
 type DatasourceInfo struct {
 	HTTPClient *http.Client
 
@@ -22,4 +27,7 @@ type DatasourceInfo struct {
 	Metadata []map[string]string `json:"metadata"`
 	// FlightSQL grpc connection
 	SecureGrpc bool `json:"secureGrpc"`
+
+	// Exemplar settings
+	ExemplarTraceIdDestinations []ExemplarSetting `json:"exemplarTraceIdDestinations"`
 }

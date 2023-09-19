@@ -1,6 +1,8 @@
+import { css } from '@emotion/css';
 import { uniqueId } from 'lodash';
 import React, { PureComponent } from 'react';
 
+import { GrafanaTheme2 } from '@grafana/data';
 import {
   DataSourcePluginOptionsEditorProps,
   DataSourceSettings,
@@ -17,6 +19,8 @@ import { InfluxOptions, InfluxOptionsV1, InfluxVersion } from '../../../types';
 import { InfluxFluxConfig } from './InfluxFluxConfig';
 import { InfluxInfluxQLConfig } from './InfluxInfluxQLConfig';
 import { InfluxSqlConfig } from './InfluxSQLConfig';
+
+export const PROM_CONFIG_LABEL_WIDTH = 30;
 
 const { Input } = LegacyForms;
 
@@ -205,3 +209,72 @@ export class ConfigEditor extends PureComponent<Props, State> {
 }
 
 export default ConfigEditor;
+
+/**
+ * Use this to return a url in a tooltip in a field. Don't forget to make the field interactive to be able to click on the tooltip
+ * @param url
+ * @returns
+ */
+export function docsTip(url?: string) {
+  const docsUrl = 'https://grafana.com/docs/grafana/latest/datasources/influxdb/#configure-the-data-source';
+
+  return (
+    <a href={url ? url : docsUrl} target="_blank" rel="noopener noreferrer">
+      Visit docs for more details here.
+    </a>
+  );
+}
+
+export function overhaulStyles(theme: GrafanaTheme2) {
+  return {
+    additionalSettings: css`
+      margin-bottom: 25px;
+    `,
+    secondaryGrey: css`
+      color: ${theme.colors.secondary.text};
+      opacity: 65%;
+    `,
+    inlineError: css`
+      margin: 0px 0px 4px 245px;
+    `,
+    switchField: css`
+      align-items: center;
+    `,
+    sectionHeaderPadding: css`
+      padding-top: 32px;
+    `,
+    sectionBottomPadding: css`
+      padding-bottom: 28px;
+    `,
+    subsectionText: css`
+      font-size: 12px;
+    `,
+    hrBottomSpace: css`
+      margin-bottom: 56px;
+    `,
+    hrTopSpace: css`
+      margin-top: 50px;
+    `,
+    textUnderline: css`
+      text-decoration: underline;
+    `,
+    versionMargin: css`
+      margin-bottom: 12px;
+    `,
+    advancedHTTPSettingsMargin: css`
+      margin: 24px 0 8px 0;
+    `,
+    advancedSettings: css`
+      padding-top: 32px;
+    `,
+    alertingTop: css`
+      margin-top: 40px !important;
+    `,
+    overhaulPageHeading: css`
+      font-weight: 400;
+    `,
+    container: css`
+      maxwidth: 578;
+    `,
+  };
+}

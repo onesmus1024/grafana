@@ -53,6 +53,7 @@ func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.Inst
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("Received JSONData:", string(settings.JSONData))
 
 		jsonData := models.DatasourceInfo{}
 		err = json.Unmarshal(settings.JSONData, &jsonData)
@@ -81,18 +82,19 @@ func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.Inst
 		}
 
 		model := &models.DatasourceInfo{
-			HTTPClient:    client,
-			URL:           settings.URL,
-			DbName:        database,
-			Version:       version,
-			HTTPMode:      httpMode,
-			TimeInterval:  jsonData.TimeInterval,
-			DefaultBucket: jsonData.DefaultBucket,
-			Organization:  jsonData.Organization,
-			Metadata:      jsonData.Metadata,
-			MaxSeries:     maxSeries,
-			SecureGrpc:    true,
-			Token:         settings.DecryptedSecureJSONData["token"],
+			HTTPClient:                  client,
+			URL:                         settings.URL,
+			DbName:                      database,
+			Version:                     version,
+			HTTPMode:                    httpMode,
+			TimeInterval:                jsonData.TimeInterval,
+			DefaultBucket:               jsonData.DefaultBucket,
+			Organization:                jsonData.Organization,
+			Metadata:                    jsonData.Metadata,
+			MaxSeries:                   maxSeries,
+			SecureGrpc:                  true,
+			Token:                       settings.DecryptedSecureJSONData["token"],
+			ExemplarTraceIdDestinations: jsonData.ExemplarTraceIdDestinations,
 		}
 		return model, nil
 	}
@@ -214,6 +216,7 @@ func (s *Service) getDSInfo(ctx context.Context, pluginCtx backend.PluginContext
 	if !ok {
 		return nil, fmt.Errorf("failed to cast datsource info")
 	}
+	fmt.Println("Exemplar Data:", instance.ExemplarTraceIdDestinations)
 
 	return instance, nil
 }

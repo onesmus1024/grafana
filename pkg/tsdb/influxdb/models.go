@@ -1,6 +1,10 @@
 package influxdb
 
-import "time"
+import (
+	"time"
+
+	"github.com/grafana/grafana-plugin-sdk-go/data"
+)
 
 type Query struct {
 	Measurement string
@@ -37,6 +41,14 @@ type Result struct {
 	Series   []Row
 	Messages []*Message
 	Error    string
+}
+
+type Exemplar struct {
+	SeriesLabels map[string]string
+	Fields       []*data.Field
+	RowIdx       int
+	Value        float64
+	Timestamp    time.Time
 }
 
 type Message struct {
