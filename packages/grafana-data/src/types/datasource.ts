@@ -282,7 +282,7 @@ abstract class DataSourceApi<
   /**
    * Variable query action.
    */
-  metricFindQuery?(query: any, options?: any): Promise<MetricFindValue[]>;
+  metricFindQuery?(query: any, options?: LegacyMetricFindQueryOptions): Promise<MetricFindValue[]>;
 
   /**
    * Get tag keys for adhoc filters
@@ -321,12 +321,6 @@ abstract class DataSourceApi<
    */
   modifyQuery?(query: TQuery, action: QueryFixAction): TQuery;
 
-  /**
-   * @deprecated since version 8.2.0
-   * Not used anymore.
-   */
-  getHighlighterExpression?(query: TQuery): string[];
-
   /** Get an identifier object for this datasource instance */
   getRef(): DataSourceRef {
     return { type: this.type, uid: this.uid };
@@ -339,7 +333,7 @@ abstract class DataSourceApi<
 
   getVersion?(optionalOptions?: any): Promise<string>;
 
-  interpolateVariablesInQueries?(queries: TQuery[], scopedVars: ScopedVars): TQuery[];
+  interpolateVariablesInQueries?(queries: TQuery[], scopedVars: ScopedVars, filters?: AdHocVariableFilter[]): TQuery[];
 
   /**
    * An annotation processor allows explicit control for how annotations are managed.
@@ -557,6 +551,9 @@ export interface DataQueryRequest<TQuery extends DataQuery = DataQuery> {
   timeInfo?: string; // The query time description (blue text in the upper right)
   panelId?: number;
   dashboardUID?: string;
+
+  /** Filters to dynamically apply to all queries */
+  filters?: AdHocVariableFilter[];
 
   // Request Timing
   startTime: number;
