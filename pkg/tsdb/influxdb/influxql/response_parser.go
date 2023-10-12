@@ -153,6 +153,9 @@ func newFrameWithTimeField(row models.Row, column string, colIndex int, query mo
 		valueField = data.NewField("Value", row.Tags, floatArray)
 	}
 
+	// Assign the InfluxDB tags to the Labels property of the Grafana data field
+	valueField.Labels = row.Tags // Assign tags here
+
 	name := string(formatFrameName(row, column, query, frameName[:]))
 	valueField.SetConfig(&data.FieldConfig{DisplayNameFromDS: name})
 	return newDataFrame(name, query.RawQuery, timeField, valueField)
@@ -329,4 +332,41 @@ func isTagValuesQuery(query models.Query) bool {
 
 func isRetentionPolicyQuery(query models.Query) bool {
 	return strings.Contains(strings.ToLower(query.RawQuery), strings.ToLower("SHOW RETENTION POLICIES"))
+}
+
+func transformToExemplars(frames data.Frames) []models.Exemplar {
+	var exemplars []models.Exemplar
+
+	for _, frame := range frames {
+		// Assuming that the frame's first field is time and the second field is value
+		timeField := frame.Fields[0]
+		valueField := frame.Fields[1]
+
+		// This is where we get our SeriesLabels from
+		seriesLabels := valueField.Labels
+
+		for i := 0; i < frame.Rows(); i++ {
+			timestamp, ok := timeField.At(i).(time.Time) // Cast to time.Time, ensure this is correct
+			if !ok {
+				continue // or handle the error
+			}
+
+			value, ok := valueField.At(i).(float64) // Cast to float64, ensure this is correct
+			if !ok {
+				continue // or handle the error
+			}
+
+			exemplar := models.Exemplar{
+				SeriesLabels: seriesLabels, // Use the labels we got from the frame field
+				Fields:       frame.Fields, // You can include all fields from the frame or filter as needed
+				RowIdx:       i,
+				Value:        value,
+				Timestamp:    timestamp,
+			}
+
+			exemplars = append(exemplars, exemplar)
+		}
+	}
+
+	return exemplars
 }

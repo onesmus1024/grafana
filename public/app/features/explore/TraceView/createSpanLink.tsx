@@ -22,8 +22,8 @@ import { TraceToMetricQuery, TraceToMetricsOptions } from 'app/core/components/T
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
 import { PromQuery } from 'app/plugins/datasource/prometheus/types';
 
-import { LokiQuery } from '../../../plugins/datasource/loki/types';
 import { InfluxQuery } from '../../../plugins/datasource/influxdb/types';
+import { LokiQuery } from '../../../plugins/datasource/loki/types';
 import { ExploreFieldLinkModel, getFieldLinksForExplore, getVariableUsageInfo } from '../utils/links';
 
 import { SpanLinkDef, SpanLinkFunc, Trace, TraceSpan } from './components';
@@ -173,12 +173,12 @@ function legacyCreateSpanLinkFactory(
           query = getQueryForSplunk(span, traceToLogsOptions, tags, customQuery);
           break;
         case 'influxdata-flightsql-datasource':
-            tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
-            query = getQueryFlightSQL(span, traceToLogsOptions, tags, customQuery);
+          tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
+          query = getQueryFlightSQL(span, traceToLogsOptions, tags, customQuery);
           break;
         case 'influxdb':
-            tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
-            query = getQueryForInfluxQL(span, traceToLogsOptions, tags, customQuery);
+          tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
+          query = getQueryForInfluxQL(span, traceToLogsOptions, tags, customQuery);
           break;
         case 'elasticsearch':
         case 'grafana-opensearch-datasource':
@@ -503,7 +503,6 @@ function getQueryForInfluxQL(
 ): InfluxQuery | undefined {
   const { filterByTraceID, filterBySpanID } = options;
 
-
   if (customQuery) {
     return {
       refId: '',
@@ -516,11 +515,14 @@ function getQueryForInfluxQL(
   let query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE time >=${__from}ms AND time <=${__to}ms';
 
   if (filterByTraceID && span.traceID && filterBySpanID && span.spanID) {
-            query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
-    } else if (filterByTraceID && span.traceID) {
-            query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from}ms AND time <=${__to}ms';
-    } else if (filterBySpanID && span.spanID) {
-            query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
+  } else if (filterByTraceID && span.traceID) {
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from}ms AND time <=${__to}ms';
+  } else if (filterBySpanID && span.spanID) {
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
   }
 
   return {
@@ -546,12 +548,15 @@ function getQueryFlightSQL(span: TraceSpan, options: TraceToLogsOptionsV2, tags:
 
   let query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE time >=${__from} AND time <=${__to}';
   if (filterByTraceID && span.traceID && filterBySpanID && span.spanID) {
-    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
-} else if (filterByTraceID && span.traceID) {
-    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from} AND time <=${__to}';
-} else if (filterBySpanID && span.spanID) {
-    query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
-}
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+  } else if (filterByTraceID && span.traceID) {
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from} AND time <=${__to}';
+  } else if (filterBySpanID && span.spanID) {
+    query =
+      'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+  }
 
   return {
     refId: '',

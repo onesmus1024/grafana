@@ -24,6 +24,8 @@ var (
 
 func Query(ctx context.Context, dsInfo *models.DatasourceInfo, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
 	logger := glog.FromContext(ctx)
+	// Override the context for the logger temporarily
+
 	response := backend.NewQueryDataResponse()
 
 	for _, reqQuery := range req.Queries {
@@ -41,7 +43,7 @@ func Query(ctx context.Context, dsInfo *models.DatasourceInfo, req *backend.Quer
 		query.RawQuery = rawQuery
 
 		if setting.Env == setting.Dev {
-			logger.Debug("Influxdb query", "raw query", rawQuery)
+			logger.Info("Influxdb query", "raw query", rawQuery)
 		}
 
 		request, err := createRequest(ctx, logger, dsInfo, rawQuery, query.Policy)
@@ -59,6 +61,75 @@ func Query(ctx context.Context, dsInfo *models.DatasourceInfo, req *backend.Quer
 	}
 
 	return response, nil
+}
+
+func createNewExemplarQuery(rawQuery string) (string, error) {
+	fromIndex := strings.Index(rawQuery, "FROM")
+	if fromIndex == -1 {
+		return "", errors.New("keyword 'FROM' not found in query")
+	}
+
+	prefix := "SELECT * FROM "
+	suffix := rawQuery[fromIndex+len("FROM")+1:]
+
+	endOfTableName := strings.Index(suffix, " ")
+	if endOfTableName == -1 {
+		return "", errors.New("space not found after table name in query")
+	}
+
+	tableName := suffix[:endOfTableName]
+	modifiedTableName := strings.TrimSuffix(tableName, "\"") + "_exemplar\""
+	remainder := suffix[endOfTableName:]
+
+	return prefix + modifiedTableName + remainder, nil
+}
+
+// QueryExemplarData function returns a slice of models.Exemplar
+func QueryExemplarData(ctx context.Context, dsInfo *models.DatasourceInfo, req *backend.QueryDataRequest) ([]models.Exemplar, error) {
+	logger := glog.FromContext(ctx)
+	var exemplars []models.Exemplar // Declare a slice of models.Exemplar
+
+	for _, reqQuery := range req.Queries {
+		query, err := models.QueryParse(reqQuery)
+		if err != nil {
+			return nil, err
+		}
+
+		rawQuery, err := query.Build(req)
+		if err != nil {
+			return nil, err
+		}
+
+		modifiedQuery, err := createNewExemplarQuery(rawQuery)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Info("Influxdb exemplar query", "raw exemplar query", modifiedQuery)
+
+		query.RefID = reqQuery.RefID
+		query.RawQuery = modifiedQuery
+
+		if setting.Env == setting.Dev {
+			logger.Debug("Influxdb query", "raw query", rawQuery)
+		}
+
+		request, err := createRequest(ctx, logger, dsInfo, rawQuery, query.Policy)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := execute(dsInfo, logger, query, request)
+		if err != nil {
+			return nil, err
+		}
+
+		// Transform the frames to exemplars and append them to the exemplars slice
+		exemplars = append(exemplars, transformToExemplars(resp.Frames)...)
+
+	}
+	logger.Info("exemplars", "exemplars", exemplars)
+	return exemplars, nil
 }
 
 func createRequest(ctx context.Context, logger log.Logger, dsInfo *models.DatasourceInfo, queryStr string, retentionPolicy string) (*http.Request, error) {

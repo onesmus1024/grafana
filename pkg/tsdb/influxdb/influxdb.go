@@ -41,7 +41,7 @@ func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.Inst
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("Received JSONData:", string(settings.JSONData))
+		//fmt.Println("Received JSONData:", string(settings.JSONData))
 
 		jsonData := models.DatasourceInfo{}
 		err = json.Unmarshal(settings.JSONData, &jsonData)
@@ -90,19 +90,23 @@ func newInstanceSettings(httpClientProvider httpclient.Provider) datasource.Inst
 
 func (s *Service) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
 	logger := logger.FromContext(ctx)
-	logger.Debug("Received a query request", "numQueries", len(req.Queries))
 
 	dsInfo, err := s.getDSInfo(ctx, req.PluginContext)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debug(fmt.Sprintf("Making a %s type query", dsInfo.Version))
+	logger.Info(fmt.Sprintf("Making a %s type query", dsInfo.Version))
 
 	switch dsInfo.Version {
 	case influxVersionFlux:
 		return flux.Query(ctx, dsInfo, *req)
 	case influxVersionInfluxQL:
+		// Check if ExemplarTraceIdDestinations is not empty
+		if len(dsInfo.ExemplarTraceIdDestinations) > 0 {
+			// Call the function to query exemplar data
+			influxql.QueryExemplarData(ctx, dsInfo, req)
+		}
 		return influxql.Query(ctx, dsInfo, req)
 	case influxVersionSQL:
 		return fsql.Query(ctx, dsInfo, *req)
@@ -121,7 +125,7 @@ func (s *Service) getDSInfo(ctx context.Context, pluginCtx backend.PluginContext
 	if !ok {
 		return nil, fmt.Errorf("failed to cast datsource info")
 	}
-	fmt.Println("Exemplar Data:", instance.ExemplarTraceIdDestinations)
+	//fmt.Println("Exemplar Data:", instance.ExemplarTraceIdDestinations)
 
 	return instance, nil
 }
