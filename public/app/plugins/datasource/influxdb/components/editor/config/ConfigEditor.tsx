@@ -19,6 +19,8 @@ import { InfluxFluxConfig } from './InfluxFluxConfig';
 import { InfluxInfluxQLConfig } from './InfluxInfluxQLConfig';
 import { InfluxSqlConfig } from './InfluxSQLConfig';
 
+export const PROM_CONFIG_LABEL_WIDTH = 30;
+
 const versionMap: Record<InfluxVersion, SelectableValue<InfluxVersion>> = {
   [InfluxVersion.InfluxQL]: {
     label: 'InfluxQL',

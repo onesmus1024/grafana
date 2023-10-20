@@ -48,6 +48,7 @@ export interface SQLOptions extends SQLConnectionLimits, DataSourceJsonData {
 export enum QueryFormat {
   Timeseries = 'time_series',
   Table = 'table',
+  Logs = 'logs',
 }
 
 export interface SQLQuery extends DataQuery {
@@ -103,6 +104,7 @@ export interface QueryRowFilter {
 export const QUERY_FORMAT_OPTIONS = [
   { label: 'Time series', value: QueryFormat.Timeseries },
   { label: 'Table', value: QueryFormat.Table },
+  { label: 'Logs', value: QueryFormat.Logs },
 ];
 
 const backWardToOption = (value: string) => ({ label: value, value });

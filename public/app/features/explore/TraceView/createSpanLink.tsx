@@ -20,9 +20,10 @@ import { Icon } from '@grafana/ui';
 import { TraceToLogsOptionsV2, TraceToLogsTag } from 'app/core/components/TraceToLogs/TraceToLogsSettings';
 import { TraceToMetricQuery, TraceToMetricsOptions } from 'app/core/components/TraceToMetrics/TraceToMetricsSettings';
 import { getDatasourceSrv } from 'app/features/plugins/datasource_srv';
+import { SQLQuery, QueryFormat } from 'app/features/plugins/sql/types';
+import { InfluxQuery } from 'app/plugins/datasource/influxdb/types';
 import { PromQuery } from 'app/plugins/datasource/prometheus/types';
 
-import { InfluxQuery } from '../../../plugins/datasource/influxdb/types';
 import { LokiQuery } from '../../../plugins/datasource/loki/types';
 import { ExploreFieldLinkModel, getFieldLinksForExplore, getVariableUsageInfo } from '../utils/links';
 
@@ -133,6 +134,7 @@ function legacyCreateSpanLinkFactory(
   if (traceToLogsOptions?.datasourceUid) {
     logsDataSourceSettings = getDatasourceSrv().getInstanceSettings(traceToLogsOptions.datasourceUid);
   }
+  console.log(logsDataSourceSettings);
   const isSplunkDS = logsDataSourceSettings?.type === 'grafana-splunk-datasource';
 
   let metricsDataSourceSettings: DataSourceInstanceSettings<DataSourceJsonData> | undefined;
@@ -166,11 +168,18 @@ function legacyCreateSpanLinkFactory(
           break;
         case 'influxdata-flightsql-datasource':
           tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
-          query = getQueryFlightSQL(span, traceToLogsOptions, tags, customQuery);
+          query = getQueryForInfluxSQL(span, traceToLogsOptions, tags, customQuery);
           break;
         case 'influxdb':
           tags = getFormattedTags(span, tagsToUse, { joinBy: ' OR ' });
-          query = getQueryForInfluxQL(span, traceToLogsOptions, tags, customQuery);
+          if (logsDataSourceSettings.jsonData && (logsDataSourceSettings.jsonData as any).version === 'SQL') {
+            console.log('get query for influx sql');
+            query = getQueryForInfluxSQL(span, traceToLogsOptions, tags, customQuery);
+            console.log(query);
+          } else {
+            console.log('get query for influx influxql');
+            query = getQueryForInfluxQL(span, traceToLogsOptions, tags, customQuery);
+          }
           break;
         case 'elasticsearch':
         case 'grafana-opensearch-datasource':
@@ -504,17 +513,17 @@ function getQueryForInfluxQL(
     };
   }
 
-  let query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE time >=${__from}ms AND time <=${__to}ms';
+  let query = 'SELECT "attributes", "event.name" FROM logs WHERE time >=${__from}ms AND time <=${__to}ms';
 
   if (filterByTraceID && span.traceID && filterBySpanID && span.spanID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
+      'SELECT "attributes", "event.name" FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
   } else if (filterByTraceID && span.traceID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from}ms AND time <=${__to}ms';
+      'SELECT "attributes", "event.name" FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from}ms AND time <=${__to}ms';
   } else if (filterBySpanID && span.spanID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
+      'SELECT "attributes", "event.name" FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from}ms AND time <=${__to}ms';
   }
 
   return {
@@ -525,37 +534,42 @@ function getQueryForInfluxQL(
   };
 }
 
-function getQueryFlightSQL(span: TraceSpan, options: TraceToLogsOptionsV2, tags: string, customQuery?: string) {
+function getQueryForInfluxSQL(
+  span: TraceSpan,
+  options: TraceToLogsOptionsV2,
+  tags: string,
+  customQuery?: string
+): SQLQuery | undefined {
   const { filterByTraceID, filterBySpanID } = options;
+
   if (customQuery) {
     return {
       refId: '',
-      rawEditor: true,
       rawQuery: true,
-      queryText: customQuery,
-      query: customQuery,
-      resultFormat: 'logs',
+      rawSql: customQuery,
+      format: QueryFormat.Logs,
     };
   }
+  console.log('get query for influx sql');
 
-  let query = 'SELECT time, "severity_text", body, attributes FROM logs WHERE time >=${__from} AND time <=${__to}';
+  let query = "SELECT * FROM logs WHERE time >= '${__from:date}' AND time <= '${__to:date}' ORDER BY time DESC";
+
   if (filterByTraceID && span.traceID && filterBySpanID && span.spanID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+      "SELECT * FROM logs WHERE \"trace_id\" LIKE '%${__span.traceId}' AND \"span_id\" LIKE '%${__span.spanId}' AND time >= '${__from:date}' AND time <= '${__to:date}' ORDER BY time DESC";
   } else if (filterByTraceID && span.traceID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "trace_id"=\'${__span.traceId}\' AND time >=${__from} AND time <=${__to}';
+      "SELECT * FROM logs WHERE \"trace_id\" LIKE '%${__span.traceId}' AND time >= '${__from:date}' AND time <= '${__to:date}' ORDER BY time DESC";
   } else if (filterBySpanID && span.spanID) {
     query =
-      'SELECT time, "severity_text", body, attributes FROM logs WHERE "span_id"=\'${__span.spanId}\' AND time >=${__from} AND time <=${__to}';
+      "SELECT * FROM logs WHERE \"span_id\" LIKE '%${__span.traceId}' AND time >= '${__from:date}' AND time <= '${__to:date}' ORDER BY time DESC";
   }
 
   return {
     refId: '',
-    rawEditor: true,
     rawQuery: true,
-    queryText: query,
-    query: query,
+    rawSql: query,
+    format: QueryFormat.Logs,
   };
 }
 
