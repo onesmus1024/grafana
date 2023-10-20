@@ -3,15 +3,21 @@ package notifier
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	alertingNotify "github.com/grafana/alerting/notify"
 	"github.com/grafana/grafana/pkg/infra/log"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
 	amclient "github.com/prometheus/alertmanager/api/v2/client"
+	amalert "github.com/prometheus/alertmanager/api/v2/client/alert"
+	amalertgroup "github.com/prometheus/alertmanager/api/v2/client/alertgroup"
+	amreceiver "github.com/prometheus/alertmanager/api/v2/client/receiver"
 	amsilence "github.com/prometheus/alertmanager/api/v2/client/silence"
 )
 
@@ -69,6 +75,10 @@ func newExternalAlertmanager(cfg externalAlertmanagerConfig, orgID int64) (*exte
 	}, nil
 }
 
+func (am *externalAlertmanager) ApplyConfig(ctx context.Context, config *models.AlertConfiguration) error {
+	return nil
+}
+
 func (am *externalAlertmanager) SaveAndApplyConfig(ctx context.Context, cfg *apimodels.PostableUserConfig) error {
 	return nil
 }
@@ -78,6 +88,12 @@ func (am *externalAlertmanager) SaveAndApplyDefaultConfig(ctx context.Context) e
 }
 
 func (am *externalAlertmanager) CreateSilence(ctx context.Context, silence *apimodels.PostableSilence) (string, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while creating silence", "err", r)
+		}
+	}()
+
 	params := amsilence.NewPostSilencesParamsWithContext(ctx).WithSilence(silence)
 	res, err := am.amClient.Silence.PostSilences(params)
 	if err != nil {
@@ -88,6 +104,12 @@ func (am *externalAlertmanager) CreateSilence(ctx context.Context, silence *apim
 }
 
 func (am *externalAlertmanager) DeleteSilence(ctx context.Context, silenceID string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while deleting silence", "err", r)
+		}
+	}()
+
 	params := amsilence.NewDeleteSilenceParamsWithContext(ctx).WithSilenceID(strfmt.UUID(silenceID))
 	_, err := am.amClient.Silence.DeleteSilence(params)
 	if err != nil {
@@ -97,21 +119,28 @@ func (am *externalAlertmanager) DeleteSilence(ctx context.Context, silenceID str
 }
 
 func (am *externalAlertmanager) GetSilence(ctx context.Context, silenceID string) (apimodels.GettableSilence, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while getting silence", "err", r)
+		}
+	}()
+
 	params := amsilence.NewGetSilenceParamsWithContext(ctx).WithSilenceID(strfmt.UUID(silenceID))
 	res, err := am.amClient.Silence.GetSilence(params)
 	if err != nil {
 		return apimodels.GettableSilence{}, err
 	}
 
-	if res != nil {
-		return *res.Payload, nil
-	}
-
-	// In theory, this should never happen as is not possible for GetSilence to return an empty payload but no error.
-	return apimodels.GettableSilence{}, fmt.Errorf("unexpected error while trying to fetch silence: %s", silenceID)
+	return *res.Payload, nil
 }
 
 func (am *externalAlertmanager) ListSilences(ctx context.Context, filter []string) (apimodels.GettableSilences, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while listing silences", "err", r)
+		}
+	}()
+
 	params := amsilence.NewGetSilencesParamsWithContext(ctx).WithFilter(filter)
 	res, err := am.amClient.Silence.GetSilences(params)
 	if err != nil {
@@ -121,28 +150,91 @@ func (am *externalAlertmanager) ListSilences(ctx context.Context, filter []strin
 	return res.Payload, nil
 }
 
+func (am *externalAlertmanager) GetAlerts(ctx context.Context, active, silenced, inhibited bool, filter []string, receiver string) (apimodels.GettableAlerts, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while getting alerts", "err", r)
+		}
+	}()
+
+	params := amalert.NewGetAlertsParamsWithContext(ctx).
+		WithActive(&active).
+		WithSilenced(&silenced).
+		WithInhibited(&inhibited).
+		WithFilter(filter).
+		WithReceiver(&receiver)
+
+	res, err := am.amClient.Alert.GetAlerts(params)
+	if err != nil {
+		return apimodels.GettableAlerts{}, err
+	}
+
+	return res.Payload, nil
+}
+
+func (am *externalAlertmanager) GetAlertGroups(ctx context.Context, active, silenced, inhibited bool, filter []string, receiver string) (apimodels.AlertGroups, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while getting alert groups", "err", r)
+		}
+	}()
+
+	params := amalertgroup.NewGetAlertGroupsParamsWithContext(ctx).
+		WithActive(&active).
+		WithSilenced(&silenced).
+		WithInhibited(&inhibited).
+		WithFilter(filter).
+		WithReceiver(&receiver)
+
+	res, err := am.amClient.Alertgroup.GetAlertGroups(params)
+	if err != nil {
+		return apimodels.AlertGroups{}, err
+	}
+
+	return res.Payload, nil
+}
+
+// TODO: implement PutAlerts in a way that is similar to what Prometheus does.
+// This current implementation is only good for testing methods that retrieve alerts from the remote Alertmanager.
+// More details in issue https://github.com/grafana/grafana/issues/76692
+func (am *externalAlertmanager) PutAlerts(ctx context.Context, postableAlerts apimodels.PostableAlerts) error {
+	defer func() {
+		if r := recover(); r != nil {
+			am.log.Error("Panic while putting alerts", "err", r)
+		}
+	}()
+
+	alerts := make(alertingNotify.PostableAlerts, 0, len(postableAlerts.PostableAlerts))
+	for _, pa := range postableAlerts.PostableAlerts {
+		alerts = append(alerts, &alertingNotify.PostableAlert{
+			Annotations: pa.Annotations,
+			EndsAt:      pa.EndsAt,
+			StartsAt:    pa.StartsAt,
+			Alert:       pa.Alert,
+		})
+	}
+
+	params := amalert.NewPostAlertsParamsWithContext(ctx).WithAlerts(alerts)
+	_, err := am.amClient.Alert.PostAlerts(params)
+	return err
+}
+
 func (am *externalAlertmanager) GetStatus() apimodels.GettableStatus {
 	return apimodels.GettableStatus{}
 }
 
-func (am *externalAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receiver string) (apimodels.GettableAlerts, error) {
-	return apimodels.GettableAlerts{}, nil
-}
+func (am *externalAlertmanager) GetReceivers(ctx context.Context) ([]apimodels.Receiver, error) {
+	params := amreceiver.NewGetReceiversParamsWithContext(ctx)
+	res, err := am.amClient.Receiver.GetReceivers(params)
+	if err != nil {
+		return []apimodels.Receiver{}, err
+	}
 
-func (am *externalAlertmanager) GetAlertGroups(active, silenced, inhibited bool, filter []string, receiver string) (apimodels.AlertGroups, error) {
-	return apimodels.AlertGroups{}, nil
-}
-
-func (am *externalAlertmanager) PutAlerts(postableAlerts apimodels.PostableAlerts) error {
-	return nil
-}
-
-func (am *externalAlertmanager) GetReceivers(ctx context.Context) []apimodels.Receiver {
-	return []apimodels.Receiver{}
-}
-
-func (am *externalAlertmanager) ApplyConfig(ctx context.Context, config *models.AlertConfiguration) error {
-	return nil
+	var rcvs []apimodels.Receiver
+	for _, rcv := range res.Payload {
+		rcvs = append(rcvs, *rcv)
+	}
+	return rcvs, nil
 }
 
 func (am *externalAlertmanager) TestReceivers(ctx context.Context, c apimodels.TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
@@ -187,4 +279,38 @@ func (r *roundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return r.next.RoundTrip(req)
+}
+
+// TODO: change implementation, this is only useful for testing other methods.
+func (am *externalAlertmanager) postConfig(ctx context.Context, rawConfig string) error {
+	url := strings.TrimSuffix(am.url, "/alertmanager") + "/api/v1/alerts"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(rawConfig))
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	res, err := am.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("config not found")
+	}
+
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			am.log.Warn("Error while closing body", "err", err)
+		}
+	}()
+
+	_, err = io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("error reading request response: %w", err)
+	}
+
+	if res.StatusCode != http.StatusCreated {
+		return fmt.Errorf("setting config failed with status code %d", res.StatusCode)
+	}
+	return nil
 }
