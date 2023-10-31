@@ -7,20 +7,21 @@ import (
 )
 
 type Query struct {
-	Measurement string
-	Policy      string
-	Tags        []*Tag
-	GroupBy     []*QueryPart
-	Selects     []*Select
-	RawQuery    string
-	UseRawQuery bool
-	Alias       string
-	Interval    time.Duration
-	Tz          string
-	Limit       string
-	Slimit      string
-	OrderByTime string
-	RefID       string
+	Measurement  string
+	Policy       string
+	Tags         []*Tag
+	GroupBy      []*QueryPart
+	Selects      []*Select
+	RawQuery     string
+	UseRawQuery  bool
+	Alias        string
+	Interval     time.Duration
+	Tz           string
+	Limit        string
+	Slimit       string
+	OrderByTime  string
+	RefID        string
+	ResultFormat string
 }
 
 type Tag struct {
