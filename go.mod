@@ -117,7 +117,7 @@ require (
 	gonum.org/v1/gonum v0.12.0 // @grafana/observability-metrics
 	google.golang.org/api v0.148.0 // @grafana/backend-platform
 	google.golang.org/grpc v1.58.3 // @grafana/plugins-platform-backend
-	google.golang.org/protobuf v1.31.0 // @grafana/plugins-platform-backend
+	google.golang.org/protobuf v1.33.0 // @grafana/plugins-platform-backend
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/ini.v1 v1.67.0 // @grafana/alerting-squad-backend
 	gopkg.in/mail.v2 v2.3.1 // @grafana/backend-platform
@@ -425,7 +425,7 @@ require (
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.1.2 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
-	sigs.k8s.io/yaml v1.3.0 // @grafana-app-platform-squad
+	sigs.k8s.io/yaml v1.3.0 // indirect; @grafana-app-platform-squad
 )
 
 require (
